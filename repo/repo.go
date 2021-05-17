@@ -91,17 +91,22 @@ func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map
 		repoFileMap[repo.Name()] = workspace
 	}
 
-	for _, d := range workspace.Directives {
+	repos, repoIndexMap, repoFileMap, err = getRepositoriesInside(workspace, workspace, repos, repoIndexMap, repoFileMap)
+	return repos, repoFileMap, err
+}
+
+func getRepositoriesInside(workspace *rule.File, f *rule.File, repos []*rule.Rule, repoIndexMap map[string]int, repoFileMap map[string]*rule.File) ([]*rule.Rule, map[string]int, map[string]*rule.File, error) {
+	for _, d := range f.Directives {
 		switch d.Key {
 		case "repository_macro":
-			f, defName, err := parseRepositoryMacroDirective(d.Value)
+			fi, defName, err := parseRepositoryMacroDirective(d.Value)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
-			f = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(f))
-			macroFile, err := rule.LoadMacroFile(f, "", defName)
+			fi = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(fi))
+			macroFile, err := rule.LoadMacroFile(fi, "", defName)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			for _, repo := range macroFile.Rules {
 				if name := repo.Name(); name != "" {
@@ -110,9 +115,9 @@ func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map
 					repoIndexMap[name] = len(repos) - 1
 				}
 			}
-			extraRepos, err = parseRepositoryDirectives(macroFile.Directives)
+			extraRepos, err := parseRepositoryDirectives(macroFile.Directives)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			for _, repo := range extraRepos {
 				if i, ok := repoIndexMap[repo.Name()]; ok {
@@ -122,9 +127,10 @@ func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map
 				}
 				repoFileMap[repo.Name()] = macroFile
 			}
+			repos, repoIndexMap, repoFileMap, err = getRepositoriesInside(workspace, macroFile, repos, repoIndexMap, repoFileMap)
 		}
 	}
-	return repos, repoFileMap, nil
+	return repos, repoIndexMap, repoFileMap, nil
 }
 
 func parseRepositoryDirectives(directives []rule.Directive) (repos []*rule.Rule, err error) {
