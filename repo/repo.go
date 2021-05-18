@@ -91,16 +91,16 @@ func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map
 		repoFileMap[repo.Name()] = workspace
 	}
 
-	repos, repoIndexMap, repoFileMap, err = getRepositoriesInside(workspace, workspace, repos, repoIndexMap, repoFileMap)
+	repos, repoIndexMap, repoFileMap, err = getRepositoriesInside(workspace, workspace.Path, repos, repoIndexMap, repoFileMap)
 	return repos, repoFileMap, err
 }
 
 // Recursively find all repositories in the workspace
-func getRepositoriesInside(workspace *rule.File, f *rule.File, repos []*rule.Rule, repoIndexMap map[string]int, repoFileMap map[string]*rule.File) ([]*rule.Rule, map[string]int, map[string]*rule.File, error) {
+func getRepositoriesInside(workspace *rule.File, path string, repos []*rule.Rule, repoIndexMap map[string]int, repoFileMap map[string]*rule.File) ([]*rule.Rule, map[string]int, map[string]*rule.File, error) {
 
 	// If from a recurisve call f is a MacroFile, and therefore it cannot be
 	// used to load directives. Instead, this must be done directly from f.Path.
-	directives, err := getDirectives(f.Path)
+	directives, err := getDirectives(path)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -108,12 +108,12 @@ func getRepositoriesInside(workspace *rule.File, f *rule.File, repos []*rule.Rul
 	for _, d := range directives {
 		switch d.Key {
 		case "repository_macro":
-			fi, defName, err := parseRepositoryMacroDirective(d.Value)
+			f, defName, err := parseRepositoryMacroDirective(d.Value)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			fi = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(fi))
-			macroFile, err := rule.LoadMacroFile(fi, "", defName)
+			f = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(f))
+			macroFile, err := rule.LoadMacroFile(f, "", defName)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -139,7 +139,7 @@ func getRepositoriesInside(workspace *rule.File, f *rule.File, repos []*rule.Rul
 
 			// We also want to double check if there are more repository_macro
 			// directives within this repository_macro
-			repos, repoIndexMap, repoFileMap, err = getRepositoriesInside(workspace, macroFile, repos, repoIndexMap, repoFileMap)
+			repos, repoIndexMap, repoFileMap, err = getRepositoriesInside(workspace, f, repos, repoIndexMap, repoFileMap)
 		}
 	}
 	return repos, repoIndexMap, repoFileMap, nil
