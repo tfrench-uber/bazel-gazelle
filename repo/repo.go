@@ -95,8 +95,17 @@ func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map
 	return repos, repoFileMap, err
 }
 
+// Recursively find all repositories in the workspace
 func getRepositoriesInside(workspace *rule.File, f *rule.File, repos []*rule.Rule, repoIndexMap map[string]int, repoFileMap map[string]*rule.File) ([]*rule.Rule, map[string]int, map[string]*rule.File, error) {
-	for _, d := range f.Directives {
+
+	// If from a recurisve call f is a MacroFile, and therefore it cannot be
+	// used to load directives. Instead, this must be done directly from f.Path.
+	directives, err := getDirectives(f.Path)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	for _, d := range directives {
 		switch d.Key {
 		case "repository_macro":
 			fi, defName, err := parseRepositoryMacroDirective(d.Value)
@@ -127,10 +136,23 @@ func getRepositoriesInside(workspace *rule.File, f *rule.File, repos []*rule.Rul
 				}
 				repoFileMap[repo.Name()] = macroFile
 			}
+
+			// We also want to double check if there are more repository_macro
+			// directives within this repository_macro
 			repos, repoIndexMap, repoFileMap, err = getRepositoriesInside(workspace, macroFile, repos, repoIndexMap, repoFileMap)
 		}
 	}
 	return repos, repoIndexMap, repoFileMap, nil
+}
+
+// Since directives should not be within the macro file's defined function, the file
+// must be loaded with LoadFile instead
+func getDirectives(path string) ([]rule.Directive, error) {
+	f, err := rule.LoadFile(path, "")
+	if err != nil {
+		return nil, err
+	}
+	return f.Directives, nil
 }
 
 func parseRepositoryDirectives(directives []rule.Directive) (repos []*rule.Rule, err error) {
