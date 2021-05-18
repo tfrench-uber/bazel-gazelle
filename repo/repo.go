@@ -71,16 +71,26 @@ func FindExternalRepo(repoRoot, name string) (string, error) {
 func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map[string]*rule.File, err error) {
 	repoIndexMap := make(map[string]int)
 	repoFileMap = make(map[string]*rule.File)
-	for _, repo := range workspace.Rules {
+
+	// Recursively find all repositories in the workspace
+	repos, _, repoFileMap, err = listRepositoriesHelper(workspace, workspace, repos, repoIndexMap, repoFileMap)
+	if err != nil {
+		return nil, nil, err
+	}
+	return repos, repoFileMap, nil
+}
+
+func listRepositoriesHelper(workspace *rule.File, f *rule.File, repos []*rule.Rule, repoIndexMap map[string]int, repoFileMap map[string]*rule.File) ([]*rule.Rule, map[string]int, map[string]*rule.File, error) {
+	for _, repo := range f.Rules {
 		if name := repo.Name(); name != "" {
 			repos = append(repos, repo)
-			repoFileMap[name] = workspace
+			repoFileMap[name] = f
 			repoIndexMap[name] = len(repos) - 1
 		}
 	}
-	extraRepos, err := parseRepositoryDirectives(workspace.Directives)
+	extraRepos, err := parseRepositoryDirectives(f.Directives)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil,  err
 	}
 	for _, repo := range extraRepos {
 		if i, ok := repoIndexMap[repo.Name()]; ok {
@@ -88,71 +98,26 @@ func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map
 		} else {
 			repos = append(repos, repo)
 		}
-		repoFileMap[repo.Name()] = workspace
+		repoFileMap[repo.Name()] = f
 	}
 
-	repos, repoIndexMap, repoFileMap, err = getRepositoriesInside(workspace, workspace.Path, repos, repoIndexMap, repoFileMap)
-	return repos, repoFileMap, err
-}
-
-// Recursively find all repositories in the workspace
-func getRepositoriesInside(workspace *rule.File, path string, repos []*rule.Rule, repoIndexMap map[string]int, repoFileMap map[string]*rule.File) ([]*rule.Rule, map[string]int, map[string]*rule.File, error) {
-
-	// If from a recurisve call f is a MacroFile, and therefore it cannot be
-	// used to load directives. Instead, this must be done directly from f.Path.
-	directives, err := getDirectives(path)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	for _, d := range directives {
+	for _, d := range f.Directives {
 		switch d.Key {
 		case "repository_macro":
-			f, defName, err := parseRepositoryMacroDirective(d.Value)
+			fi, defName, err := parseRepositoryMacroDirective(d.Value)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			f = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(f))
-			macroFile, err := rule.LoadMacroFile(f, "", defName)
+			fi = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(fi))
+			macroFile, err := rule.LoadMacroFile(fi, "", defName)
 			if err != nil {
 				return nil, nil, nil, err
-			}
-			for _, repo := range macroFile.Rules {
-				if name := repo.Name(); name != "" {
-					repos = append(repos, repo)
-					repoFileMap[name] = macroFile
-					repoIndexMap[name] = len(repos) - 1
-				}
-			}
-			extraRepos, err := parseRepositoryDirectives(macroFile.Directives)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			for _, repo := range extraRepos {
-				if i, ok := repoIndexMap[repo.Name()]; ok {
-					repos[i] = repo
-				} else {
-					repos = append(repos, repo)
-				}
-				repoFileMap[repo.Name()] = macroFile
 			}
 
-			// We also want to double check if there are more repository_macro
-			// directives within this repository_macro
-			repos, repoIndexMap, repoFileMap, err = getRepositoriesInside(workspace, f, repos, repoIndexMap, repoFileMap)
+			repos, repoIndexMap, repoFileMap, err = listRepositoriesHelper(workspace, macroFile, repos, repoIndexMap, repoFileMap)
 		}
 	}
 	return repos, repoIndexMap, repoFileMap, nil
-}
-
-// Since directives should not be within the macro file's defined function, the file
-// must be loaded with LoadFile instead
-func getDirectives(path string) ([]rule.Directive, error) {
-	f, err := rule.LoadFile(path, "")
-	if err != nil {
-		return nil, err
-	}
-	return f.Directives, nil
 }
 
 func parseRepositoryDirectives(directives []rule.Directive) (repos []*rule.Rule, err error) {
