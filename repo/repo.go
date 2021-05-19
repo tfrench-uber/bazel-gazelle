@@ -114,7 +114,7 @@ func listRepositoriesHelper(workspace *rule.File, f *rule.File, repos []*rule.Ru
 			}
 
 			// The recursive call will only be made if the user explicitly adds
-			// repositories from with a repository_macro from within a repository_macro file
+			// repositories with a repository_macro directive from within a repository_macro file
 			repos, err = listRepositoriesHelper(workspace, macroFile, repos, repoIndexMap, repoFileMap)
 			if err != nil {
 				return nil, err
