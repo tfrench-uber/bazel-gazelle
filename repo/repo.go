@@ -71,15 +71,16 @@ func FindExternalRepo(repoRoot, name string) (string, error) {
 func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map[string]*rule.File, err error) {
 	repoIndexMap := make(map[string]int)
 	repoFileMap = make(map[string]*rule.File)
+	macrosChecked := make(map[string]bool)
 
-	repos, err = listRepositoriesHelper(workspace, workspace, repos, repoIndexMap, repoFileMap)
+	repos, err = listRepositoriesHelper(workspace, workspace, repos, repoIndexMap, repoFileMap, macrosChecked)
 	if err != nil {
 		return nil, nil, err
 	}
 	return repos, repoFileMap, nil
 }
 
-func listRepositoriesHelper(workspace *rule.File, f *rule.File, repos []*rule.Rule, repoIndexMap map[string]int, repoFileMap map[string]*rule.File) ([]*rule.Rule, error) {
+func listRepositoriesHelper(workspace *rule.File, f *rule.File, repos []*rule.Rule, repoIndexMap map[string]int, repoFileMap map[string]*rule.File, macrosChecked map[string]bool) ([]*rule.Rule, error) {
 	for _, repo := range f.Rules {
 		if name := repo.Name(); name != "" {
 			repos = append(repos, repo)
@@ -114,10 +115,14 @@ func listRepositoriesHelper(workspace *rule.File, f *rule.File, repos []*rule.Ru
 			}
 
 			// The recursive call will only be made if the user explicitly adds
-			// repositories with a repository_macro directive from within a repository_macro file
-			repos, err = listRepositoriesHelper(workspace, macroFile, repos, repoIndexMap, repoFileMap)
-			if err != nil {
-				return nil, err
+			// repositories with a repository_macro directive from within a
+			// repository_macro file. Each macro will only be read once.
+			if !macrosChecked[d.Value] {
+				macrosChecked[d.Value] = true
+				repos, err = listRepositoriesHelper(workspace, macroFile, repos, repoIndexMap, repoFileMap, macrosChecked)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
