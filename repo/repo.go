@@ -120,8 +120,12 @@ func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map
 						for _, s := range l.Symbols() {
 							if s == kind {
 								callFile = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(l.Name()))
+								break
 							}
 						}
+					}
+					if len(callFile) == 0 {
+						continue
 					}
 					fi, err := rule.LoadMacroFile(callFile, "", kind)
 					if err != nil {
