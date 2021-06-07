@@ -216,10 +216,11 @@ func TestListRepositoriesWithPlusRepositoryMacroDirective(t *testing.T) {
 	files := []testtools.FileSpec{{
 		Path: "repos1.bzl",
 		Content: `
-load("repos2.bzl", "bar_repositories")
+load("repos2.bzl", "bar_repositories", alias = "alias_repositories")
 def go_repositories():
 
     bar_repositories()
+    alias()
 
     go_repository(
         name = "go_repo",
@@ -238,6 +239,14 @@ def bar_repositories():
         remote = "https://example.com/bar",
         importpath = "example.com/bar",
     )
+
+def alias_repositories():
+    go_repository(
+        name = "alias_repo",
+        commit = "123456",
+        remote = "https://example.com/alias",
+        importpath = "example.com/alias",
+    )
 `}}
 	dir, cleanup := testtools.CreateFiles(t, files)
 	defer cleanup()
@@ -253,6 +262,7 @@ def bar_repositories():
 	}
 	got := reposToString(repos)
 	want := `bar_repo example.com/bar
+alias_repo example.com/alias
 go_repo example.com/go`
 	if got != want {
 		t.Errorf("got\n%s\n\nwant:\n%s", got, want)

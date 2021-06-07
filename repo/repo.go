@@ -115,19 +115,18 @@ func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map
 				} else {
 					// This block will only be entered if leveled==true
 					var callFile string
+					var defName string
 					for _, l := range macroFile.Loads {
-						// Check all the loaded defNames
-						for _, s := range l.Symbols() {
-							if s == kind {
-								callFile = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(l.Name()))
-								break
-							}
+						if l.Has(kind) {
+							callFile = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(l.Name()))
+							defName = l.Get(kind)
+							break
 						}
 					}
 					if len(callFile) == 0 {
 						continue
 					}
-					fi, err := rule.LoadMacroFile(callFile, "", kind)
+					fi, err := rule.LoadMacroFile(callFile, "", defName)
 					if err != nil {
 						return nil, nil, err
 					}
