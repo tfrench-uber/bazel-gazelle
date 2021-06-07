@@ -98,8 +98,8 @@ func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map
 			if err != nil {
 				return nil, nil, err
 			}
-			leveled := strings.HasSuffix(f, "+")
-			f = strings.TrimSuffix(f, "+")
+			leveled := strings.HasPrefix(f, "+")
+			f = strings.TrimPrefix(f, "+")
 			f = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(f))
 			macroFile, err := rule.LoadMacroFile(f, "", defName)
 			if err != nil {
@@ -119,7 +119,7 @@ func ListRepositories(workspace *rule.File) (repos []*rule.Rule, repoFileMap map
 						// Check all the loaded defNames
 						for _, s := range l.Symbols() {
 							if s == kind {
-								callFile = l.Name()
+								callFile = filepath.Join(filepath.Dir(workspace.Path), filepath.Clean(l.Name()))
 							}
 						}
 					}
