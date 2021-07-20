@@ -435,6 +435,9 @@ type stmt struct {
 // rules, this is the index of the original statement.
 func (s *stmt) Index() int { return s.index }
 
+// SetIndex sets the index of a statement, to be used in custom sorting APIs
+func (s *stmt) SetIndex(int i) { s.index = i }
+
 // Delete marks this statement for deletion. It will be removed from the
 // syntax tree when File.Sync is called.
 func (s *stmt) Delete() { s.deleted = true }
