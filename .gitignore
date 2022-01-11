@@ -1,4 +1,5 @@
 bazel-bazel-gazelle
+bazel-gazelle
 bazel-bin
 bazel-genfiles
 bazel-out
