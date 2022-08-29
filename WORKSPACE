@@ -15,10 +15,10 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "685052b498b6ddfe562ca7a97736741d87916fe536623afb7da2824c0211c369",
+    integrity = "sha256-1qtrV+SMCVI+kwUPE2mPcIQoz9XmGSUuNp03evZZdwc=",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.33.0/rules_go-v0.33.0.zip",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.33.0/rules_go-v0.33.0.zip",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.43.0/rules_go-v0.43.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.43.0/rules_go-v0.43.0.zip",
     ],
 )
 
@@ -28,15 +28,52 @@ go_rules_dependencies()
 
 go_register_toolchains(
     nogo = "@bazel_gazelle//:nogo",
-    version = "1.18.3",
+    version = "1.21.3",
 )
 
 load("//:deps.bzl", "gazelle_dependencies")
 
 gazelle_dependencies()
 
+# For API doc generation
+# This is a dev dependency, users should not need to install it
+# so we declare it in the WORKSPACE
+http_archive(
+    name = "io_bazel_stardoc",
+    sha256 = "62bd2e60216b7a6fec3ac79341aa201e0956477e7c8f6ccc286f279ad1d96432",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/stardoc/releases/download/0.6.2/stardoc-0.6.2.tar.gz",
+        "https://github.com/bazelbuild/stardoc/releases/download/0.6.2/stardoc-0.6.2.tar.gz",
+    ],
+)
+
+# Stardoc pulls in a lot of deps, which we need to declare here.
+load("@io_bazel_stardoc//:setup.bzl", "stardoc_repositories")
+
+stardoc_repositories()
+
+load("@rules_jvm_external//:repositories.bzl", "rules_jvm_external_deps")
+
+rules_jvm_external_deps()
+
+load("@rules_jvm_external//:setup.bzl", "rules_jvm_external_setup")
+
+rules_jvm_external_setup()
+
+load("@io_bazel_stardoc//:deps.bzl", "stardoc_external_deps")
+
+stardoc_external_deps()
+
+load("@stardoc_maven//:defs.bzl", stardoc_pinned_maven_install = "pinned_maven_install")
+
+stardoc_pinned_maven_install()
+
+load("@bazel_skylib//lib:unittest.bzl", "register_unittest_toolchains")
+
+register_unittest_toolchains()
+
 # gazelle:repository go_repository name=co_honnef_go_tools importpath=honnef.co/go/tools
-# gazelle:repository go_repository name=com_github_bazelbuild_buildtools importpath=github.com/bazelbuild/buildtools build_naming_convention=go_default_library
+# gazelle:repository go_repository name=com_github_bazelbuild_buildtools importpath=github.com/bazelbuild/buildtools
 # gazelle:repository go_repository name=com_github_bazelbuild_rules_go importpath=github.com/bazelbuild/rules_go
 # gazelle:repository go_repository name=com_github_bmatcuk_doublestar_v4 importpath=github.com/bmatcuk/doublestar/v4
 # gazelle:repository go_repository name=com_github_burntsushi_toml importpath=github.com/BurntSushi/toml
@@ -52,10 +89,8 @@ gazelle_dependencies()
 # gazelle:repository go_repository name=com_github_golang_mock importpath=github.com/golang/mock
 # gazelle:repository go_repository name=com_github_golang_protobuf importpath=github.com/golang/protobuf
 # gazelle:repository go_repository name=com_github_google_go_cmp importpath=github.com/google/go-cmp
-# gazelle:repository go_repository name=com_github_pelletier_go_toml importpath=github.com/pelletier/go-toml
 # gazelle:repository go_repository name=com_github_pmezard_go_difflib importpath=github.com/pmezard/go-difflib
 # gazelle:repository go_repository name=com_github_prometheus_client_model importpath=github.com/prometheus/client_model
-# gazelle:repository go_repository name=com_github_yuin_goldmark importpath=github.com/yuin/goldmark
 # gazelle:repository go_repository name=com_google_cloud_go importpath=cloud.google.com/go
 # gazelle:repository go_repository name=net_starlark_go importpath=go.starlark.net
 # gazelle:repository go_repository name=org_golang_google_appengine importpath=google.golang.org/appengine
@@ -72,20 +107,5 @@ gazelle_dependencies()
 # gazelle:repository go_repository name=org_golang_x_sys importpath=golang.org/x/sys
 # gazelle:repository go_repository name=org_golang_x_text importpath=golang.org/x/text
 # gazelle:repository go_repository name=org_golang_x_tools importpath=golang.org/x/tools
+# gazelle:repository go_repository name=org_golang_x_tools_go_vcs importpath=golang.org/x/tools/go/vcs
 # gazelle:repository go_repository name=org_golang_x_xerrors importpath=golang.org/x/xerrors
-
-# For API doc generation
-# This is a dev dependency, users should not need to install it
-# so we declare it in the WORKSPACE
-http_archive(
-    name = "io_bazel_stardoc",
-    sha256 = "c9794dcc8026a30ff67cf7cf91ebe245ca294b20b071845d12c192afe243ad72",
-    urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/stardoc/releases/download/0.5.0/stardoc-0.5.0.tar.gz",
-        "https://github.com/bazelbuild/stardoc/releases/download/0.5.0/stardoc-0.5.0.tar.gz",
-    ],
-)
-
-load("@bazel_skylib//lib:unittest.bzl", "register_unittest_toolchains")
-
-register_unittest_toolchains()
