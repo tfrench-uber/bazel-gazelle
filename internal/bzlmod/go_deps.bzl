@@ -141,6 +141,7 @@ def _go_deps_impl(module_ctx):
     root_versions = {}
     root_fixups = []
     sums = {}
+    replace_map = {}
 
     outdated_direct_dep_printer = print
     for module in module_ctx.modules:
@@ -183,7 +184,10 @@ def _go_deps_impl(module_ctx):
             for entry, new_sum in sums_from_go_mod(module_ctx, from_file_tag.go_mod).items():
                 _safe_insert_sum(sums, entry, new_sum)
 
-            additional_module_tags += deps_from_go_mod(module_ctx, from_file_tag.go_mod)
+            additional_module_tags_new, this_replace_map = deps_from_go_mod(module_ctx, from_file_tag.go_mod)
+            additional_module_tags += additional_module_tags_new
+            if module.is_root:
+                replace_map.update(this_replace_map)
 
         _fail_on_non_root_overrides(module, "module", "build_naming_convention")
         _fail_on_non_root_overrides(module, "module", "build_file_proto_mode")
@@ -250,19 +254,34 @@ def _go_deps_impl(module_ctx):
                 ),
             )
 
+    # All `replace` directives are applied after version resolution.
+    # We can simply do this by checking the replace paths' existence
+    # in the module resolutions and swapping out the entry.
+    for path, replace in replace_map.items():
+        if path in module_resolutions:
+            module = module_resolutions[path]
+            module_resolutions[path] = struct(
+                module = module.module,
+                repo_name = module.repo_name,
+                replace = replace.to_path,
+                version = semver.to_comparable(replace.version),
+                raw_version = replace.version,
+            )
+
 
     # Validate all the modules have valid sums after the version resolution.
     # Modules that are discarded in resolution do not need to have sums defined
     # in the root module.
     for path, module in module_resolutions.items():
-        entry = (path, module.raw_version)
+        entry = (module.replace, module.raw_version) if hasattr(module, "replace") else (path, module.raw_version)
         if entry not in sums:
             fail("No sum for {}@{} found".format(path, module.raw_version))
 
         go_repository(
             name = module.repo_name,
             importpath = path,
-            sum = sums[(path, module.raw_version)],
+            replace = getattr(module, "replace", None),
+            sum = sums[(module.replace, module.raw_version)] if hasattr(module, "replace") else sums[(path, module.raw_version)],
             version = "v" + module.raw_version,
             build_directives = _get_directives(path, gazelle_overrides),
         )
