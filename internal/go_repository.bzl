@@ -292,8 +292,11 @@ def _go_repository_impl(ctx):
             # `<prefix>~<name set by the extension>`.
             extension_repo_prefix = ctx.attr.name.rpartition("~")[0] + "~"
             repo_config = ctx.path(Label("@@" + extension_repo_prefix + "bazel_gazelle_go_repository_config//:WORKSPACE"))
+            print("isolated: Label" + str(Label("@@" + extension_repo_prefix + "bazel_gazelle_go_repository_config//:WORKSPACE")))
+            print("isolated: Path" + str(repo_config))
         else:
             repo_config = ctx.path(ctx.attr.build_config)
+            print("not isolated: " + str(repo_config))
         cmd = [
             gazelle_path,
             "-go_repository_mode",
